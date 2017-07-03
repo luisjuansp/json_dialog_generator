@@ -1,0 +1,30 @@
+{
+  "name": "json_dialog_generator",
+  "version": "1.0.0",
+  "description": "JSON Generator for IBM Watson Conversation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diegoajv/json_dialog_generator.git"
+  },
+  "keywords": [
+    "json",
+    "ibm",
+    "watson",
+    "conversation"
+  ],
+  "author": "Diego AJV <diegoajvilla@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/diegoajv/json_dialog_generator/issues"
+  },
+  "homepage": "https://github.com/diegoajv/json_dialog_generator#readme",
+  "dependencies": {
+    "csv-parse": "^1.2.0",
+    "fs": "0.0.1-security",
+    "prompt": "^1.0.0"
+  }
+}
