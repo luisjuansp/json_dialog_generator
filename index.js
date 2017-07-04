@@ -1,24 +1,60 @@
+// -----------------------------------------------------
+// Modulo: JSON Dialog Generator
+// Descripcion:
+//		Automatiza el proceso de generacion de dialogos
+//		para IBM Watson Conversation
+// Author: Chatbot Fisica Universitaria
+// Fecha: 03-07-2017
+// -----------------------------------------------------
+
+// Modulos requeridos
+//	fs: Interaccion con el sistema
+//	csv-parse: CSV to JSON
+//	prompt: Entrada de texto 
 var fs = require('fs');
 var csv = require('csv-parse');
 var prompt = require('prompt');
+
+// Constantes de interacion
+var FILE_CSV_INPUT = './corpus.csv';											// Nombre del archivo CSV (Entrada)
+var FILE_JSON_OUTPUT = './output.json';											// Nombre del archivo JSON (Salida)
+
+// Constantes de configuracion del Chatbot
+var WORKSPACE_NAME = 'Nombre Workspace';
+var WORKSPACE_ID = 'ID Workspace';
+var WORKSPACE_DESC = 'Descripcion Workspace';
+var WORKSPACE_LANG = 'es';
+var WORKSPACE_ANYTHING_ELSE = 'Respuesta cuando no se entiende la entrada';
+var WORKSPACE_INTENT_NAME = 'my_intent';										// Prefijo para el intent
+var WORKSPACE_DATE = new Date();												
+var WORKSPACE_DATE_JSON = WORKSPACE_DATE.toJSON();
 
 module.exports = function() {
   main();
 };
 
-// CONSTANTS - User will be prompted to override (where makes sense)
+function main() {
 
-var FILE_CSV_INPUT = './corpus.csv';
-var FILE_JSON_OUTPUT = './output.json';
+  // Construye JSON
+  generaJSON(FILE_CSV_INPUT);
 
-var WORKSPACE_ID = 'fede7b10-f035-44d8-9fcd-80cddbcf08db';
-var WORKSPACE_NAME = 'Workspace Test Name';
-var WORKSPACE_DESC = 'Workspace Test Description';
-var WORKSPACE_LANG = 'en';
-var WORKSPACE_ANYTHING_ELSE = 'I do not understand what you are asking.';
-var WORKSPACE_INTENT_NAME = 'my_intent';
-var WORKSPACE_DATE = new Date();
-var WORKSPACE_DATE_JSON = WORKSPACE_DATE.toJSON();
+}
+
+function generaJSON(archivoCSV) {
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * Removes the trailer comma from a string (if ends in comma).
@@ -139,14 +175,6 @@ function buildWorkspace(csvFile) {
       '"dialog_nodes":' + dialogs + ',' +
       '"workspace_id":"' + WORKSPACE_ID + '"}';
 
-    //console.log(intents);
-    //console.log('----------------------------------');
-    //console.log(dialogs);
-    //console.log('----------------------------------');
-    //console.log(workspace);
-    //console.log('----------------------------------');
-    //console.log(JSON.parse(workspace));
-
     fs.writeFile(FILE_JSON_OUTPUT, workspace, function (err) {
 
       if (err) {
@@ -158,123 +186,4 @@ function buildWorkspace(csvFile) {
   });
 
   fs.createReadStream(csvFile).pipe(parser);
-}
-
-/**
- * Prompts user for input from command line to override defaults.
- * @param {function} action Function to run after gathering input from user.
- */
-function promptUserForInput(action) {
-
-  var promptSchema = {
-
-    properties: {
-
-      fileInput: {
-        description: 'Enter the File Input (CSV Corpus)',
-        pattern: /^[a-zA-Z0-9\_\.\/]+$/,
-        message:
-          'CSV file name must be a valid file name.',
-        required: true,
-        default: FILE_CSV_INPUT
-      },
-
-      fileOutput: {
-        description: 'Enter the File Output (JSON Workspace)',
-        pattern: /^[a-zA-Z0-9\_\.\/]+$/,
-        message:
-          'JSON file name must be a valid file name.',
-        required: true,
-        default: FILE_JSON_OUTPUT
-      },
-
-      workspaceId: {
-        description: 'Enter the Workspace ID',
-        pattern: /^[a-zA-Z0-9\-]+$/,
-        message: 'Workspace ID must be only letters, numbers or dashes.',
-        required: true,
-        default: WORKSPACE_ID
-      },
-
-      workspaceName: {
-        description: 'Enter the Workspace Name',
-        pattern: /^[a-zA-Z0-9\s]+$/,
-        message: 'Workspace ID must be only letters, numbers or spaces.',
-        required: true,
-        default: WORKSPACE_NAME
-      },
-
-      workspaceDesc: {
-        description: 'Enter the Workspace Description',
-        pattern: /^[a-zA-Z0-9\s]+$/,
-        message:
-          'Workspace Description must be only letters, numbers or spaces.',
-        required: true,
-        default: WORKSPACE_DESC
-      },
-
-      workspaceLang: {
-        description: 'Enter the Workspace Language',
-        pattern: /^[a-z]{2,2}$/,
-        message: 'Workspace Language must be 2 character language code.',
-        required: true,
-        default: WORKSPACE_LANG
-      },
-
-      workspaceAny: {
-        description: 'Enter the Workspace misunderstood response',
-        pattern: /^[a-zA-Z0-9\s\\.\\?\\!]+$/,
-        message: 'Enter a valid Watson response.',
-        required: true,
-        default: WORKSPACE_ANYTHING_ELSE
-      },
-
-      workspaceIntent: {
-        description: 'Enter the Workspace Intent prefix',
-        pattern: /^[a-zA-Z0-9\_]+$/,
-        message:
-          'Workspace Intent prefix must be letters, numbers or underscore.',
-        required: true,
-        default: WORKSPACE_INTENT_NAME
-      }
-    }
-  };
-
-  prompt.start();
-
-  // Prompt user with defaults, then override with input from user.
-  prompt.get(promptSchema, function (err, result) {
-
-    FILE_CSV_INPUT = result.fileInput;
-    FILE_JSON_OUTPUT = result.fileOutput;
-
-    WORKSPACE_ID = result.workspaceId;
-    WORKSPACE_NAME = result.workspaceName;
-    WORKSPACE_DESC = result.workspaceDesc;
-    WORKSPACE_LANG = result.workspaceLang;
-    WORKSPACE_ANYTHING_ELSE = result.workspaceAny
-    WORKSPACE_INTENT_NAME = result.workspaceIntent;
-
-    action();
-  });
-}
-
-// Main function for dialog CLI
-function main() {
-
-  // First prompt user for inputs, then build workspace JSON.
-  promptUserForInput(function () {
-
-    buildWorkspace(FILE_CSV_INPUT);
-  });
-
-  /*
-  fs.readFile('./test.json', 'utf8', function (err, data) {
-    if (err) throw err;
-    var obj = JSON.parse(data);
-    console.log('----------------------------------');
-    console.log(obj);
-    console.log('----------------------------------');
-  });
-  */
 }
