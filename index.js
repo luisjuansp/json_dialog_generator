@@ -3,7 +3,7 @@
 // Descripcion:
 //		Automatiza el proceso de generacion de dialogos
 //		para IBM Watson Conversation
-// Author: Chatbot Fisica Universitaria
+// Autor: Chatbot Fisica Universitaria
 // Fecha: 03-07-2017
 // -----------------------------------------------------
 
@@ -199,7 +199,14 @@ function generaEntities(CSVFile) {
 
     console.log(entities);
     console.log("El CSV Entities ha sido procesado");
-    
+
+  });
+
+  fs.createReadStream(CSVFile).pipe(parser);
+}
+
+function generaDialogo(CSVFile) {
+  var parser = csv({delimiter: ','}, function(err, data) {
   });
 
   fs.createReadStream(CSVFile).pipe(parser);
