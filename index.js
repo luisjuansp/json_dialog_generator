@@ -26,7 +26,6 @@ var WORKSPACE_ID = 'ID Workspace';
 var WORKSPACE_DESC = 'Descripcion Workspace';
 var WORKSPACE_LANG = 'es';
 var WORKSPACE_ANYTHING_ELSE = 'Respuesta cuando no se entiende la entrada';
-var WORKSPACE_INTENT_NAME = 'my_intent';										// Prefijo para el intent
 var WORKSPACE_DATE = new Date();												
 var WORKSPACE_DATE_JSON = WORKSPACE_DATE.toJSON();
 
