@@ -196,8 +196,10 @@ function generaEntities(CSVFile) {
     }
 
     entities += ']';
+
     console.log(entities);
     console.log("El CSV Entities ha sido procesado");
+    
   });
 
   fs.createReadStream(CSVFile).pipe(parser);
