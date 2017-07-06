@@ -15,9 +15,10 @@ var fs = require('fs');
 var csv = require('csv-parse');
 var prompt = require('prompt');
 
-// Constantes de interacion
+// Constantes para manipulacion de archivos
 var CSV_INTENTS_INPUT = "./intents.csv";
 var CSV_ENTITIES_INPUT = "./entities.csv";
+var CSV_DIALOGO_INPUT = "./dialogo.csv";
 var FILE_JSON_OUTPUT = './output.json';
 
 // Constantes de configuracion del Chatbot
@@ -29,62 +30,63 @@ var WORKSPACE_ANYTHING_ELSE = 'Respuesta cuando no se entiende la entrada';
 var WORKSPACE_DATE = new Date();												
 var WORKSPACE_DATE_JSON = WORKSPACE_DATE.toJSON();
 
+// Variables de interacion
+var intents_ok = false;
+var entities_ok = false;
+var dialogs_ok = false;
+var intents;
+var entities;
+var dialogo;
+
 module.exports = function() {
   main();
 };
 
 function main() {
-  // Construye JSON
-  generaJSON();
+  generaIntents(CSV_INTENTS_INPUT);
+  generaEntities(CSV_ENTITIES_INPUT);
+  generaDialogo(CSV_DIALOGO_INPUT);
 }
 
 function generaJSON() {
 
-  generaIntents(CSV_INTENTS_INPUT);
-  generaEntities(CSV_ENTITIES_INPUT);
+  // Verifica que ya se hayan procesado todos los archivos CSV
+  if(intents_ok && entities_ok && dialogs_ok){
+    // Genera la estructura del JSON
+    var jsonFile = '{' +
+                    '"name": "' + WORKSPACE_NAME + '",' +
+                    '"language": "' + WORKSPACE_LANG + '", ' + 
+                    '"description": "' + WORKSPACE_DESC + '", ' +
+                    '"intents": ' + intents + ', ' + 
+                    '"entities": ' + entities + ', ' +
+                    '"dialog_nodes": ' + dialogo + '}';
 
-  var jsonFile = '{' +
-                  '"name": "' + WORKSPACE_NAME + '",' +
-                  '"created": "' + WORKSPACE_DATE_JSON + '",' +
-                  '"intents": ' + 'Aqui van intents' + ', ' + 
-                  '"updated": "' + WORKSPACE_DATE_JSON + '", ' +
-                  '"entities": ' + 'Aqui van entities' + ', ' +
-                  '"language": "' + WORKSPACE_LANG + '", ' + 
-                  '"description": "' + WORKSPACE_DESC + '", ' +
-                  '"dialog_nodes": ' + 'Aqui van dialogos' + ', ' +
-                  '"workspace_id": "' + WORKSPACE_ID + '", ' +
-                  '"counterexamples": []}';
-
-  fs.writeFile(FILE_JSON_OUTPUT, jsonFile, function (err) {
-      if (err) {
-        return console.log(err);
-      }
-      console.log('Archivo JSON generado');
-  });
-
+    // Genera el archivo JSON
+    fs.writeFile(FILE_JSON_OUTPUT, jsonFile, function (err) {
+        if (err) {
+          return console.log(err);
+        }
+        console.log('Archivo JSON generado');
+    });
+  }
 }
 
 function generaIntents(CSVFile) {
   var parser = csv({delimiter: ','}, function(err, data) {
-    
-    var intents = '[';
+    intents = '[';
 
     for(var i=0; i < data.length; i++) {
       var intent_name = data[i][0];
       var intent_description = data[i][1];
 
       var intent = '{' +
-        '"intent": "' + intent_name + '", ' +
-        '"created": "' + WORKSPACE_DATE_JSON + '", ' +
-        '"updated": "' + WORKSPACE_DATE_JSON + '", ' +
-        '"examples": [';
+                    '"intent": "' + intent_name + '", ' +
+                    '"examples": [';
       
       // Genera ejemplos para cada intent
       for(var j=2; j < data[i].length; j++) {
         var example = '{' +
-                            '"text": "' + data[i][j] + '", ' +
-                            '"created": "' + WORKSPACE_DATE_JSON + '", ' +
-                            '"updated": "' + WORKSPACE_DATE_JSON + '"' +
+                       '"text": "' + data[i][j] + '"' +
                       '}';
         if(j < data[i].length-1) {
           example += ',';
@@ -102,12 +104,12 @@ function generaIntents(CSVFile) {
 
       intents += intent;
     }
-
     intents += ']';
 
-    console.log(intents);
     console.log("El CSV Intents ha sido procesado");
+    intents_ok = true;
 
+    generaJSON();
   });
 
   fs.createReadStream(CSVFile).pipe(parser);
@@ -121,7 +123,7 @@ function generaEntities(CSVFile) {
     var entity_description_anterior = "";
     var entity_description_actual = "";
     var entity = "";
-    var entities = "[";
+    entities = "[";
 
     for(var i=0; i < data.length; i++) {
 
@@ -136,11 +138,7 @@ function generaEntities(CSVFile) {
             entity = entity.substring(0, entity.length-1);
           }
           entity += '], ';
-          entity += '"created": "' + WORKSPACE_DATE_JSON + '", ';
-          entity += '"updated": "' + WORKSPACE_DATE_JSON + '", ';
-          entity += '"metadata": null, ';
-          entity += '"description": "' + entity_description_anterior+ '", ';
-          entity += '"fuzzy_match": true';
+          entity += '"description": "' + entity_description_anterior+ '"';
           entity += '},';
           entities += entity;
           entity = '';
@@ -153,9 +151,6 @@ function generaEntities(CSVFile) {
       // Procesa valor de entity
       var value = "{" +
         '"value": "' + data[i][2] + '", ' +
-        '"created": "' + WORKSPACE_DATE_JSON + '", ' +
-        '"updated": "' + WORKSPACE_DATE_JSON + '", ' +
-        '"meta": null, ' +
         '"synonyms": [';
 
       for (var j = 3; j < data[i].length; j++) {
@@ -173,18 +168,14 @@ function generaEntities(CSVFile) {
 
     }
 
-    // Agrego informacion de la ultima entidad
+    // Agrego informacion de la ultima entity
     if (entity != '') {
       // Remover la ultima coma
       if (entity.endsWith(',')) {
         entity = entity.substring(0, entity.length - 1);
       }
       entity += '], ';
-      entity += '"created": "' + WORKSPACE_DATE_JSON + '", ';
-      entity += '"updated": "' + WORKSPACE_DATE_JSON + '", ';
-      entity += '"metadata": null, ';
-      entity += '"description": "' + entity_description_actual + '", ';
-      entity += '"fuzzy_match": true';
+      entity += '"description": "' + entity_description_actual + '"';
       entity += '},';
       entities += entity;
       entity = '';
@@ -197,9 +188,10 @@ function generaEntities(CSVFile) {
 
     entities += ']';
 
-    console.log(entities);
     console.log("El CSV Entities ha sido procesado");
+    entities_ok = true;
 
+    generaJSON();    
   });
 
   fs.createReadStream(CSVFile).pipe(parser);
@@ -207,7 +199,121 @@ function generaEntities(CSVFile) {
 
 function generaDialogo(CSVFile) {
   var parser = csv({delimiter: ','}, function(err, data) {
+    
+    dialogo = '[';
+    var arrayNPadre = [];
+
+    for(var i=0; i < data.length; i++) {
+      
+      var hijo_nodo_actual = false;
+      var index_nodo_padre = -1;
+
+      // Creo un nodoPadre
+      var nodoPadreO = new nodoPadre(data[i][2], data[i][2]);
+
+      // Verifico si el nodoPadre ya esta en el arreglo
+      if(arrayNPadre.length != 0) {
+        for(var k=0; k<arrayNPadre.length; k++) {
+          var dialog_node_anterior = arrayNPadre[k].dialog_node;
+          if(dialog_node_anterior == nodoPadreO.dialog_node) {
+            hijo_nodo_actual = false;
+            index_nodo_padre = k;
+            break;
+          }       
+        }
+        if(index_nodo_padre == -1) {
+          hijo_nodo_actual = true;
+        }
+      } else {
+        hijo_nodo_actual = true;
+      }
+
+      // Se obtiene la condicion para el nodoHijo
+      var conditionHijo = "";
+      var conditionLength = 0;
+      for(var j=3; j < data[i].length; j++) {
+        if(data[i][j] != '') {
+          conditionHijo += data[i][j];
+          conditionLength += 1;
+        }
+      }
+      // Se genera un nodoHijo 
+      var nodoHijoO = new nodoHijo(data[i][0], data[i][1], conditionHijo, conditionLength);
+
+      // Si es hijo del nodoPadre actual
+      if(hijo_nodo_actual) {
+        // Añado hijo al nodoPadre actual
+        nodoPadreO.hijos.push(nodoHijoO);
+        // Añado nodoPadre al arreglo
+        arrayNPadre.push(nodoPadreO);
+      } else {
+        // Si no es hijo del nodoPadre actual
+        // Añado nodoHijo a un nodoPadre anterior
+        arrayNPadre[index_nodo_padre].hijos.push(nodoHijoO); 
+      }
+    }
+
+    // Se tiene que ordenar el arreglo de nodoHijo de cada nodoPadre
+    for(var i=0; i<arrayNPadre.length; i++) {
+      if(arrayNPadre[i].hijos.length > 0) {
+        arrayNPadre[i].hijos.sort(function (a,b) {
+          return (b.conditionLength - a.conditionLength);
+        });
+      }
+    }
+
+    for(var i=0; i<arrayNPadre.length; i++) {
+      // Creo la estructura JSON del nodoPadre
+      dialogo += '{' +
+                    '"dialog_node": "' + arrayNPadre[i].dialog_node + '",'
+                    '"conditions": "' + arrayNPadre[i].conditions + '",';
+      if(i == 0) {
+        dialogo +=  '"previous_sibling": "Conversation Start"';  
+      } else {
+        dialogo += '"previous_sibling": "' + arrayNPadre[i-1].dialog_node + '"';
+      } 
+      dialogo += '},';        
+      for(var j=0; j<arrayNPadre[i].hijos.length; j++) {
+        var nodoH = arrayNPadre[i].hijos[j];
+        // Creo la estructura JSON de los nodoHijo
+        dialogo += '{' +
+                    '"dialog_node": "' + nodoH.dialog_node + '",'
+                    '"conditions": "' + nodoH.conditions + '",';
+        dialogo += '"output": { "text": { "values": [' + '"' +nodoH.respuesta + '"' + '], "selection_policy": "sequential"}},'
+        if(j == 0) {
+          dialogo += '"previous_sibling": null';
+        } else {
+          dialogo += '"previous_sibling": "' + arrayNPadre[i].hijos[j-1].dialog_node + '"';
+        }
+        dialogo += '},';
+      }
+    }
+
+    // Remuevo la ultima coma
+    if (dialogo.endsWith(',')) {
+      dialogo = dialogo.substring(0, dialogo.length - 1);
+    }
+
+    dialogo += ']';
+
+    console.log("El CSV Dialogo ha sido procesado")
+    dialogs_ok = true;
+
+    generaJSON();
   });
 
   fs.createReadStream(CSVFile).pipe(parser);
+}
+
+function nodoPadre(dialog_node, conditions) {
+  this.dialog_node = dialog_node;
+  this.conditions = conditions;
+  this.hijos = [];
+}
+
+function nodoHijo(dialog_node, respuesta, conditions, conditionLength) {
+  this.dialog_node = dialog_node;
+  this.respuesta = respuesta;
+  this.conditions = conditions;
+  this.conditionLength = conditionLength;
 }
