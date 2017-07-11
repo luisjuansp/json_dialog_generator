@@ -1,16 +1,16 @@
 // -----------------------------------------------------
 // Modulo: JSON Generator for IBM Watson Conversation
 // Descripcion:
-//		Automatiza el proceso de generacion de dialogos
-//		para IBM Watson Conversation
+//    Automatiza el proceso de generacion de dialogos
+//    para IBM Watson Conversation
 // Autor: Chatbot Fisica Universitaria
 // Fecha: 03-07-2017
 // -----------------------------------------------------
 
 // Modulos requeridos
-//	fs: Interaccion con el sistema
-//	csv-parse: CSV to JSON
-//	prompt: Entrada de texto 
+//  fs: Interaccion con el sistema
+//  csv-parse: CSV to JSON
+//  prompt: Entrada de texto 
 var fs = require('fs');
 var csv = require('csv-parse');
 var prompt = require('prompt');
@@ -27,293 +27,308 @@ var WORKSPACE_ID = 'ID Workspace';
 var WORKSPACE_DESC = 'Descripcion Workspace';
 var WORKSPACE_LANG = 'es';
 var WORKSPACE_ANYTHING_ELSE = 'Respuesta cuando no se entiende la entrada';
-var WORKSPACE_DATE = new Date();												
+var WORKSPACE_DATE = new Date();
 var WORKSPACE_DATE_JSON = WORKSPACE_DATE.toJSON();
 
 // Variables de interacion
-var intents_ok = false;
-var entities_ok = false;
-var dialogs_ok = false;
 var intents;
 var entities;
 var dialogo;
+var categorias = {};
 
-module.exports = function() {
-  main();
+module.exports = function () {
+    main();
 };
 
 function main() {
-  generaIntents(CSV_INTENTS_INPUT);
-  generaEntities(CSV_ENTITIES_INPUT);
-  generaDialogo(CSV_DIALOGO_INPUT);
+    generaIntents(CSV_INTENTS_INPUT);
 }
 
 function generaJSON() {
 
-  // Verifica que ya se hayan procesado todos los archivos CSV
-  if(intents_ok && entities_ok && dialogs_ok){
     // Genera la estructura del JSON
     var jsonFile = '{' +
-                    '"name": "' + WORKSPACE_NAME + '",' +
-                    '"language": "' + WORKSPACE_LANG + '", ' + 
-                    '"description": "' + WORKSPACE_DESC + '", ' +
-                    '"intents": ' + intents + ', ' + 
-                    '"entities": ' + entities + ', ' +
-                    '"dialog_nodes": ' + dialogo + '}';
+        '"name": "' + WORKSPACE_NAME + '",' +
+        '"language": "' + WORKSPACE_LANG + '", ' +
+        '"description": "' + WORKSPACE_DESC + '", ' +
+        '"intents": ' + intents + ', ' +
+        '"entities": ' + entities + ', ' +
+        '"dialog_nodes": ' + dialogo + '}';
 
     // Genera el archivo JSON
     fs.writeFile(FILE_JSON_OUTPUT, jsonFile, function (err) {
         if (err) {
-          return console.log(err);
+            return console.log(err);
         }
         console.log('Archivo JSON generado');
     });
-  }
+
 }
 
 function generaIntents(CSVFile) {
-  var parser = csv({delimiter: ','}, function(err, data) {
-    intents = '[';
 
-    for(var i=0; i < data.length; i++) {
-      var intent_name = data[i][0];
-      var intent_description = data[i][1];
+    var parser = csv({ delimiter: ',' }, function (err, data) {
 
-      var intent = '{' +
-                    '"intent": "' + intent_name + '", ' +
-                    '"examples": [';
-      
-      // Genera ejemplos para cada intent
-      for(var j=2; j < data[i].length; j++) {
-        var example = '{' +
-                       '"text": "' + data[i][j] + '"' +
-                      '}';
-        if(j < data[i].length-1) {
-          example += ',';
+        // Objeto temporal de conversion
+        intents_obj = {};
+
+        // Objeto final de Intents
+        output = [];
+
+        // Por cada ejemplo de intent
+        for (var i = 0; i < data.length; i++) {
+            // Sacas el nombre y ejemplo
+            var intent_name = data[i][1];
+            var intent_example = data[i][0];
+            // Si aun no habia dicho intent
+            if (intents_obj[intent_name] == null) {
+                // Crear una lista vacia
+                intents_obj[intent_name] = [];
+            }
+            // Meter el ejemplo a la lista del intent
+            intents_obj[intent_name].push({
+                text: intent_example
+            });
         }
-        intent += example;
-      }
 
-      intent += '], ';
-      intent += '"description": "' + intent_description + '"';
-      intent += '}';
+        // Por cada intent en el objeto
+        Object.keys(intents_obj).forEach(function (key) {
+            // Meter intent y todos los ejemplos al objeto de salida
+            output.push({
+                intent: key,
+                examples: intents_obj[key]
+            });
+        })
 
-      if(i < data.length-1) {
-        intent += ',';
-      }
+        // Transformar el objeto de salida a string
+        intents = JSON.stringify(output);
+        console.log("El CSV Intents ha sido procesado");
 
-      intents += intent;
-    }
-    intents += ']';
+        generaEntities(CSV_ENTITIES_INPUT);
+    });
 
-    console.log("El CSV Intents ha sido procesado");
-    intents_ok = true;
-
-    generaJSON();
-  });
-
-  fs.createReadStream(CSVFile).pipe(parser);
+    fs.createReadStream(CSVFile).pipe(parser);
 }
 
 function generaEntities(CSVFile) {
-  var parser = csv({delimiter: ','}, function(err, data) {
 
-    var entity_anterior = "";
-    var entity_actual = "";
-    var entity_description_anterior = "";
-    var entity_description_actual = "";
-    var entity = "";
-    entities = "[";
+    var parser = csv({ delimiter: ',' }, function (err, data) {
 
-    for(var i=0; i < data.length; i++) {
+        // Objeto temporal de conversion
+        var entities_obj = {};
 
-      entity_actual = data[i][0];
-      entity_description_actual = data[i][1];
-      
-      if(entity_actual != entity_anterior) {
+        // Objeto de salida
+        var output = [];
 
-        if(entity != '') {
-          // Remover la ultima coma
-          if(entity.endsWith(',')) {
-            entity = entity.substring(0, entity.length-1);
-          }
-          entity += '], ';
-          entity += '"description": "' + entity_description_anterior+ '"';
-          entity += '},';
-          entities += entity;
-          entity = '';
+        // Por cada valor de la entity
+        for (var i = 0; i < data.length; i++) {
+
+            // Sacar la categoria/entity
+            entity = data[i][0];
+
+            // Sacar el valor
+            value = data[i][1];
+
+            // Guardar a que entity pertenece el valor
+            categorias[value] = entity;
+
+            // Sacar la lista de sinonimos
+            synonyms = [];
+
+            for (var j = 2; j < data[i].length; j++) {
+                if (data[i][j] == "" || data[i][j] == null) break;
+                synonyms.push(data[i][j]);
+            }
+
+            // Si no existe la entity en el objeto temporal, crear un objeto nuevo
+            if (entities_obj[entity] == null) entities_obj[entity] = {};
+
+            // Meter los sinonimos con su respectivo valor
+            entities_obj[entity][value] = synonyms;
+
         }
-        entity += '{' +
-          '"entity": "' + entity_actual + '", ' +
-          '"values": [';
-      }
 
-      // Procesa valor de entity
-      var value = "{" +
-        '"value": "' + data[i][2] + '", ' +
-        '"synonyms": [';
+        // Por cada entity
+        Object.keys(entities_obj).forEach(function (entity) {
 
-      for (var j = 3; j < data[i].length; j++) {
-        value += '"' + data[i][j] + '"';
-        if (j < data[i].length - 1) {
-          value += ',';
-        }
-      }
+            // Obtener sus valores con sinonimos
+            var values = [];
 
-      value += ']},' 
-      entity += value;
-      
-      entity_description_anterior = entity_description_actual;
-      entity_anterior = entity_actual;
+            Object.keys(entities_obj[entity]).forEach(function (value) {
+                values.push({
+                    value: value,
+                    synonyms: entities_obj[entity][value]
+                });
+            });
 
-    }
+            // Meter la entity con sus valores
+            output.push({
+                entity: entity,
+                values: values
+            });
+        });
+        
+        // Transoformar el objeto a string
+        entities = JSON.stringify(output);
+        console.log("El CSV Entities ha sido procesado");
 
-    // Agrego informacion de la ultima entity
-    if (entity != '') {
-      // Remover la ultima coma
-      if (entity.endsWith(',')) {
-        entity = entity.substring(0, entity.length - 1);
-      }
-      entity += '], ';
-      entity += '"description": "' + entity_description_actual + '"';
-      entity += '},';
-      entities += entity;
-      entity = '';
-    }
+        generaDialogo(CSV_DIALOGO_INPUT);
+    });
 
-    // Elimina la ultima coma
-    if (entities.endsWith(',')) {
-      entities = entities.substring(0, entities.length - 1);
-    }
-
-    entities += ']';
-
-    console.log("El CSV Entities ha sido procesado");
-    entities_ok = true;
-
-    generaJSON();    
-  });
-
-  fs.createReadStream(CSVFile).pipe(parser);
+    fs.createReadStream(CSVFile).pipe(parser);
 }
 
 function generaDialogo(CSVFile) {
-  var parser = csv({delimiter: ','}, function(err, data) {
-    
-    dialogo = '[';
-    var arrayNPadre = [];
 
-    for(var i=0; i < data.length; i++) {
-      
-      var hijo_nodo_actual = false;
-      var index_nodo_padre = -1;
+    var parser = csv({ delimiter: ',' }, function (err, data) {
 
-      // Creo un nodoPadre
-      var nodoPadreO = new nodoPadre(data[i][2], data[i][2]);
+        // Tener un objeto de intents para el primer nivel
+        var intents = {};
 
-      // Verifico si el nodoPadre ya esta en el arreglo
-      if(arrayNPadre.length != 0) {
-        for(var k=0; k<arrayNPadre.length; k++) {
-          var dialog_node_anterior = arrayNPadre[k].dialog_node;
-          if(dialog_node_anterior == nodoPadreO.dialog_node) {
-            hijo_nodo_actual = false;
-            index_nodo_padre = k;
-            break;
-          }       
+        // Objeto temporal de conversion
+        var dialog_obj = {};
+
+        // Objeto de salida
+        var output = [];
+
+        // Por cada nodo final/respuesta
+        for (var i = 0; i < data.length; i++) {
+
+            // Obtener su id y corregirlo
+            var id = data[i][0];
+            id = id.replace(/\+/g, " ");
+
+            // Obtener la respuesta e intent
+            var respuesta = data[i][1];
+            var intent = data[i][2];
+
+            // Guardar cual es el primer hijo de este intent para el jump-to
+            if (intents[intent] == null) intents[intent] = id;
+
+            // Generar el string de condicion
+            var condicion = "";
+
+            for (var j = 3; j < data[i].length; j++) {
+
+                if (data[i][j] == null || data[i][j] == "") break;
+
+                // Crear "@entity:(value) && @entity:(value)..."
+                condicion += "@" + categorias[data[i][j]] + ":(" + data[i][j] + ") && ";
+            }
+
+            // Borrar ultimo "&&"
+            if (condicion.length != 0) condicion = condicion.substring(0, condicion.length - 4);
+
+            // Crear la rama del intent si no existe
+            if (dialog_obj[intent] == null) dialog_obj[intent] = {};
+
+            // Asignar condicion y respuesta para dicho id(nodo)
+            dialog_obj[intent][id] = {
+                condicion: condicion,
+                respuesta: respuesta
+            };
         }
-        if(index_nodo_padre == -1) {
-          hijo_nodo_actual = true;
-        }
-      } else {
-        hijo_nodo_actual = true;
-      }
 
-      // Se obtiene la condicion para el nodoHijo
-      var conditionHijo = "";
-      var conditionLength = 0;
-      for(var j=3; j < data[i].length; j++) {
-        if(data[i][j] != '') {
-          conditionHijo += data[i][j];
-          conditionLength += 1;
-        }
-      }
-      // Se genera un nodoHijo 
-      var nodoHijoO = new nodoHijo(data[i][0], data[i][1], conditionHijo, conditionLength);
-
-      // Si es hijo del nodoPadre actual
-      if(hijo_nodo_actual) {
-        // Añado hijo al nodoPadre actual
-        nodoPadreO.hijos.push(nodoHijoO);
-        // Añado nodoPadre al arreglo
-        arrayNPadre.push(nodoPadreO);
-      } else {
-        // Si no es hijo del nodoPadre actual
-        // Añado nodoHijo a un nodoPadre anterior
-        arrayNPadre[index_nodo_padre].hijos.push(nodoHijoO); 
-      }
-    }
-
-    // Se tiene que ordenar el arreglo de nodoHijo de cada nodoPadre
-    for(var i=0; i<arrayNPadre.length; i++) {
-      if(arrayNPadre[i].hijos.length > 0) {
-        arrayNPadre[i].hijos.sort(function (a,b) {
-          return (b.conditionLength - a.conditionLength);
+        // Crear el primer nodo para la bienvenida
+        output.push({
+            parent: null,
+            conditions: "conversation_start",
+            dialog_node: "Welcome",
+            previous_sibling: null,
+            output: {
+                text: {
+                    values: [
+                        "Hola, con que te puedo ayudar"
+                    ],
+                    selection_policy: "random"
+                }
+            }
         });
-      }
-    }
 
-    for(var i=0; i<arrayNPadre.length; i++) {
-      // Creo la estructura JSON del nodoPadre
-      dialogo += '{' +
-                    '"dialog_node": "' + arrayNPadre[i].dialog_node + '",'
-                    '"conditions": "' + arrayNPadre[i].conditions + '",';
-      if(i == 0) {
-        dialogo +=  '"previous_sibling": "Conversation Start"';  
-      } else {
-        dialogo += '"previous_sibling": "' + arrayNPadre[i-1].dialog_node + '"';
-      } 
-      dialogo += '},';        
-      for(var j=0; j<arrayNPadre[i].hijos.length; j++) {
-        var nodoH = arrayNPadre[i].hijos[j];
-        // Creo la estructura JSON de los nodoHijo
-        dialogo += '{' +
-                    '"dialog_node": "' + nodoH.dialog_node + '",'
-                    '"conditions": "' + nodoH.conditions + '",';
-        dialogo += '"output": { "text": { "values": [' + '"' +nodoH.respuesta + '"' + '], "selection_policy": "sequential"}},'
-        if(j == 0) {
-          dialogo += '"previous_sibling": null';
-        } else {
-          dialogo += '"previous_sibling": "' + arrayNPadre[i].hijos[j-1].dialog_node + '"';
-        }
-        dialogo += '},';
-      }
-    }
+        // Variable para guardar el nodo precedente
+        var previous_sibling = "Welcome";
 
-    // Remuevo la ultima coma
-    if (dialogo.endsWith(',')) {
-      dialogo = dialogo.substring(0, dialogo.length - 1);
-    }
+        // Por cada intent
+        Object.keys(intents).forEach(function (intent) {
+            // Crear su nodo
+            output.push({
+                parent: null,
+                conditions: "#" + intent,
+                dialog_node: intent,
+                previous_sibling: previous_sibling,
+                go_to: {
+                    selector: "condition",
+                    dialog_node: intents[intent]
+                }
+            })
 
-    dialogo += ']';
+            // Actualizar el nodo anterior
+            previous_sibling = intent;
+        })
 
-    console.log("El CSV Dialogo ha sido procesado")
-    dialogs_ok = true;
+        // Variable para oredenar los nodos por numero de entities
+        var output_temp = {};
 
-    generaJSON();
-  });
+        // Por cada nodo final
+        Object.keys(dialog_obj).forEach(function (intent) {
 
-  fs.createReadStream(CSVFile).pipe(parser);
-}
+            // Creamos el arreglo de nodos
+            output_temp[intent] = [];
 
-function nodoPadre(dialog_node, conditions) {
-  this.dialog_node = dialog_node;
-  this.conditions = conditions;
-  this.hijos = [];
-}
+            // Por cada intent
+            Object.keys(dialog_obj[intent]).forEach(function (ID) {
 
-function nodoHijo(dialog_node, respuesta, conditions, conditionLength) {
-  this.dialog_node = dialog_node;
-  this.respuesta = respuesta;
-  this.conditions = conditions;
-  this.conditionLength = conditionLength;
+                // Creamos el nodo y registramos cuantas entities tiene
+                output_temp[intent].push({
+                    count: dialog_obj[intent][ID].condicion.split("&&").length,
+                    output: {
+                        parent: intent,
+                        conditions: dialog_obj[intent][ID].condicion,
+                        dialog_node: ID,
+                        previous_sibling: previous_sibling,
+                        output: {
+                            text: {
+                                values: [
+                                    dialog_obj[intent][ID].respuesta
+                                ],
+                                selection_policy: "random"
+                            }
+                        }
+                    }
+                })
+
+                previous_sibling = ID;
+            });
+
+            // Ordenamos los nodos
+            output_temp[intent].sort((a, b) => {
+                return b.count - a.count
+            });
+        });
+
+        // Por cada nodo final
+        Object.keys(output_temp).forEach(function (intent) {
+
+            // El primer nodo no tiene precedente
+            var previous_sibling = null;
+
+            // Por cada intent, crear sus nodos hijos
+            Object.keys(output_temp[intent]).forEach(function (index) {
+                
+                output.push(output_temp[intent][index].output);
+
+                // Actualizar el nodo anterior
+                previous_sibling = output_temp[intent][index].output.dialog_node;
+            })
+
+        });
+
+        // Pasar el objeto de salida a string
+        dialogo = JSON.stringify(output);
+        console.log("El CSV Dialogo ha sido procesado")
+
+        generaJSON();
+    });
+
+    fs.createReadStream(CSVFile).pipe(parser);
 }
