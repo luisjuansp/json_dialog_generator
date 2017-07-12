@@ -304,6 +304,52 @@ function generaDialogo(CSVFile) {
             output_temp[intent].sort((a, b) => {
                 return b.count - a.count
             });
+
+            // Agregamos el nodo Exit
+            output_temp[intent].push({
+                output: {
+                    parent: intent,
+                    conditions: "$reprompt",
+                    dialog_node: "Exit",
+                    context: {
+                        reprompt: false 
+                    },
+                    next_step: {
+                        behavior: "jump_to",
+                        selector: "condition",
+                        dialog_node: "Anything Else"
+                    },
+                    previous_sibling: previous_sibling,
+                    output: {}
+                }    
+            });
+
+            // Agregamos el nodo Reprompt
+            output_temp[intent].push({
+                output: {
+                    parent: intent,
+                    conditions: "anything_else",
+                    dialog_node: "Reprompt",
+                    context: {
+                        reprompt: true 
+                    },
+                    next_step: {
+                        behavior: "jump_to",
+                        selector: "user_input",
+                        dialog_node: output_temp[intent][0].output.dialog_node
+                    },
+                    previous_sibling: previous_sibling,
+                    output: {
+                        text: {
+                            values: [
+                                'Que con ' + intent + '?'
+                            ],
+                            selection_policy: "sequential"
+                        }
+                    }
+                }    
+            });
+
         });
 
         // Por cada nodo final
@@ -321,6 +367,22 @@ function generaDialogo(CSVFile) {
                 previous_sibling = output_temp[intent][index].output.dialog_node;
             })
 
+        });
+
+        // Agrega el ultimo nodo: anything_else
+        output.push({
+            parent: null,
+            conditions: "anything_else",
+            dialog_node: "Anything Else",
+            previous_sibling: output[output.length-1].dialog_node,
+            output: {
+                text: {
+                    values: [
+                        "No te entendi"
+                    ],
+                    selection_policy: "random"
+                }
+            }
         });
 
         // Pasar el objeto de salida a string
