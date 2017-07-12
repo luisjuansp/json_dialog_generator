@@ -369,7 +369,7 @@ function generaDialogo(CSVFile) {
 
         });
 
-        // Agrega el ultimo nodo: anything_else
+        // Agregamos el ultimo nodo: anything_else
         output.push({
             parent: null,
             conditions: "anything_else",
